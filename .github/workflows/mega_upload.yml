@@ -1,0 +1,38 @@
+name: IG Extractor & MEGA Upload
+
+# Yeh action manually run karne ke liye hai (GitHub UI se)
+on:
+  workflow_dispatch: 
+
+jobs:
+  extract-and-upload:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install Python Dependencies
+        # Script ke andar 'requests' module use hua hai, isliye isko install karna zaroori hai
+        run: pip install requests
+
+      - name: Run Extraction Script
+        # Sudo use kar rahe hain taake script /data/IG_Scraping folder bana sake
+        run: sudo python uni.py
+
+      - name: Install Rclone
+        run: sudo -v ; curl https://rclone.org/install.sh | sudo bash
+
+      - name: Configure Rclone for MEGA
+        run: |
+          rclone config create vfx mega user "enragedoatmeal6@sharebot.net" pass "zEUj2zsBGHxy"
+
+      - name: Upload Data to MEGA
+        run: |
+          # Yeh command pura IG_Scraping folder (jisme aapka dynamically generated Batch folder hoga) MEGA par copy kar dega
+          rclone copy /data/IG_Scraping vfx:/IG_Scraping -P --transfers 32 --checkers 64
