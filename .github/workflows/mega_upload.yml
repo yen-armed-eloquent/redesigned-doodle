@@ -18,21 +18,34 @@ jobs:
           python-version: '3.10'
 
       - name: Install Python Dependencies
-        # Script ke andar 'requests' module use hua hai, isliye isko install karna zaroori hai
         run: pip install requests
 
-      - name: Run Extraction Script
-        # Sudo use kar rahe hain taake script /data/IG_Scraping folder bana sake
-        run: sudo python uni.py
+      - name: Create Target Directories & Fix Permissions
+        # Script ke hardcoded path (/data/IG_Scraping) ko pehle banayenge 
+        # aur runner user ko owner bana denge taake aagay sudo ki zaroorat na pare.
+        run: |
+          sudo mkdir -p /data/IG_Scraping/datasets
+          sudo chown -R $USER:$USER /data
 
       - name: Install Rclone
-        run: sudo -v ; curl https://rclone.org/install.sh | sudo bash
+        run: curl https://rclone.org/install.sh | sudo bash
 
       - name: Configure Rclone for MEGA
         run: |
           rclone config create vfx mega user "enragedoatmeal6@sharebot.net" pass "zEUj2zsBGHxy"
 
-      - name: Upload Data to MEGA
+      - name: Download Raw JSONs from MEGA
         run: |
-          # Yeh command pura IG_Scraping folder (jisme aapka dynamically generated Batch folder hoga) MEGA par copy kar dega
+          echo "Downloading data from MEGA folder 'Rawdata_Scraping_Instagram'..."
+          rclone copy vfx:/Instagram_Data/Batch_2026-04-05T23-23-17/Master_Dataset_2026-04-05T23-23-17.json -P
+
+      - name: Run Extraction Script
+        run: |
+          echo "Running universal extractor..."
+          python uni.py
+
+      - name: Upload Extracted Data to MEGA
+        run: |
+          echo "Uploading results back to MEGA..."
+          # Pura IG_Scraping folder (jisme aapka dynamically generated Batch folder hoga) MEGA par copy kar dega
           rclone copy /data/IG_Scraping vfx:/IG_Scraping -P --transfers 32 --checkers 64
