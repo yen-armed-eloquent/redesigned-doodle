@@ -441,9 +441,10 @@ def find_raw_posts(data, require_owner=False):
 
 def extract_active_stories_advanced(data):
     story_items  = []
-    # --- YEH 2 LINES ADD KARNI HAIN ---
+    # --- YAHAN FIX KIYA HAI ---
     if not isinstance(data, dict):
         return story_items
+        
     active_stories = data.get('activeStories')
     if not active_stories: return story_items
 
@@ -739,34 +740,42 @@ def module_cleandata(data, out_dir, username):
     tag_active_stories_and_highlights(data)
     all_items = []
 
-    for src_key in ('feedPosts', 'posts', 'scrapedPosts'):
-        for p in data.get(src_key, []):
-            p['source_type'] = 'Post'
-            all_items.append(p)
+    # --- YAHAN FIX KIYA HAI ---
+    if isinstance(data, dict):
+        for src_key in ('feedPosts', 'posts', 'scrapedPosts'):
+            for p in data.get(src_key, []):
+                p['source_type'] = 'Post'
+                all_items.append(p)
 
-    for hl in data.get('highlights', []):
-        if 'items' in hl:
-            title = sanitize_or(hl.get('title', ''), 'Highlight', 25)
-            for it in hl['items']:
-                it['_highlight_title'] = title
-                it['_is_highlight']    = True
-                it['product_type']     = 'story'
-                all_items.append(it)
-        else:
-            hl['product_type'] = 'story'
-            hl['_is_highlight'] = True
-            all_items.append(hl)
+        for hl in data.get('highlights', []):
+            if 'items' in hl:
+                title = sanitize_or(hl.get('title', ''), 'Highlight', 25)
+                for it in hl['items']:
+                    it['_highlight_title'] = title
+                    it['_is_highlight']    = True
+                    it['product_type']     = 'story'
+                    all_items.append(it)
+            else:
+                hl['product_type'] = 'story'
+                hl['_is_highlight'] = True
+                all_items.append(hl)
+    elif isinstance(data, list):
+        for p in data:
+            if isinstance(p, dict):
+                p['source_type'] = 'Post'
+                all_items.append(p)
 
     clean_stories = extract_active_stories_advanced(data)
     if clean_stories:
         all_items.extend(clean_stories)
 
-    acc = data.get('accountInfo') or data.get('user')
-    if isinstance(acc, dict):
-        update_avatar_cache(acc)
-        uname = acc.get('username') or acc.get('Username') or username
-        av    = acc.get('profilePicUrl') or acc.get('profile_pic_url')
-        if av: _avatar_cache.setdefault(uname, {'url': av, 'width': 150})
+    if isinstance(data, dict):
+        acc = data.get('accountInfo') or data.get('user')
+        if isinstance(acc, dict):
+            update_avatar_cache(acc)
+            uname = acc.get('username') or acc.get('Username') or username
+            av    = acc.get('profilePicUrl') or acc.get('profile_pic_url')
+            if av: _avatar_cache.setdefault(uname, {'url': av, 'width': 150})
 
     if not all_items:
         safe_print("   ❌ No posts, highlights, or stories found in CleanData.")
@@ -835,6 +844,11 @@ def module_following(data, out_dir, username, file_key):
     skip_file_flag = False
 
     safe_print(f"   📋 [FOLLOWING] Processing following list...")
+    # --- YAHAN FIX KIYA HAI ---
+    if not isinstance(data, dict):
+        safe_print("   [!] File list format mein hai, 'followingList' dictionary expected thi. Skipping.")
+        return
+
     chunks = data.get('followingList', [])
     if not chunks:
         safe_print("   [!] 'followingList' key nahi mili. Skipping.")
@@ -959,6 +973,11 @@ def module_suggested(data, out_dir, source_filename):
 # ════════════════════════════════════════════════════════════════════
 def module_tagged(data, out_dir, username):
     safe_print("   📋 [TAGGED] Extracting tagged posts...")
+    # --- YAHAN FIX KIYA HAI ---
+    if not isinstance(data, dict):
+        safe_print("   ⚠️ Data list format mein hai, tagged edges expected nahi. Skipping.")
+        return
+
     edges = (data.get('data', {})
                  .get('xdt_api__v1__usertags__user_id__feed_connection', {})
                  .get('edges', []))
