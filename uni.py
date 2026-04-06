@@ -441,6 +441,9 @@ def find_raw_posts(data, require_owner=False):
 
 def extract_active_stories_advanced(data):
     story_items  = []
+    # --- YEH 2 LINES ADD KARNI HAIN ---
+    if not isinstance(data, dict):
+        return story_items
     active_stories = data.get('activeStories')
     if not active_stories: return story_items
 
