@@ -1,6 +1,5 @@
 name: IG Extractor & MEGA Upload
 
-# Yeh action manually run karne ke liye hai (GitHub UI se)
 on:
   workflow_dispatch: 
 
@@ -21,8 +20,7 @@ jobs:
         run: pip install requests
 
       - name: Create Target Directories & Fix Permissions
-        # Script ke hardcoded path (/data/IG_Scraping) ko pehle banayenge 
-        # aur runner user ko owner bana denge taake aagay sudo ki zaroorat na pare.
+        # Script ke hardcoded path ko pehle banayenge aur permissions set karenge
         run: |
           sudo mkdir -p /data/IG_Scraping/datasets
           sudo chown -R $USER:$USER /data
@@ -34,10 +32,11 @@ jobs:
         run: |
           rclone config create vfx mega user "enragedoatmeal6@sharebot.net" pass "zEUj2zsBGHxy"
 
-      - name: Download Raw JSONs from MEGA
+      - name: Download Master Dataset from MEGA
+        # Yahan main ne specific JSON file ka path diya hai aur aagay destination folder diya hai
         run: |
-          echo "Downloading data from MEGA folder 'Rawdata_Scraping_Instagram'..."
-          rclone copy vfx:/Instagram_Data/Batch_2026-04-05T23-23-17/Master_Dataset_2026-04-05T23-23-17.json -P
+          echo "Downloading Master Dataset file from MEGA..."
+          rclone copy vfx:/Instagram_Data/Batch_2026-04-05T23-23-17/Master_Dataset_2026-04-05T23-23-17.json /data/IG_Scraping/datasets/ -P
 
       - name: Run Extraction Script
         run: |
@@ -45,7 +44,7 @@ jobs:
           python uni.py
 
       - name: Upload Extracted Data to MEGA
+        # Script chalne ke baad jo naya "Batch" folder banega, usko hum "Instagram_Extracted_Data" naam ke naye folder mein bhej rahe hain taake purana data mix na ho
         run: |
           echo "Uploading results back to MEGA..."
-          # Pura IG_Scraping folder (jisme aapka dynamically generated Batch folder hoga) MEGA par copy kar dega
-          rclone copy /data/IG_Scraping vfx:/IG_Scraping -P --transfers 32 --checkers 64
+          rclone copy /data/IG_Scraping vfx:/Instagram_Extracted_Data -P --transfers 32 --checkers 64
