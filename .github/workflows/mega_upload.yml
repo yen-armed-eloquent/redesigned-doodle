@@ -20,7 +20,6 @@ jobs:
         run: pip install requests
 
       - name: Create Target Directories & Fix Permissions
-        # Script ke hardcoded path ko pehle banayenge aur permissions set karenge
         run: |
           sudo mkdir -p /data/IG_Scraping/datasets
           sudo chown -R $USER:$USER /data
@@ -33,10 +32,10 @@ jobs:
           rclone config create vfx mega user "enragedoatmeal6@sharebot.net" pass "zEUj2zsBGHxy"
 
       - name: Download Master Dataset from MEGA
-        # Yahan main ne specific JSON file ka path diya hai aur aagay destination folder diya hai
+        # Yahan source aur destination dono paths ko quotes mein rakha hai taake koi error na aaye
         run: |
           echo "Downloading Master Dataset file from MEGA..."
-          rclone copy vfx:/Instagram_Data/Batch_2026-04-05T23-23-17/Master_Dataset_2026-04-05T23-23-17.json /data/IG_Scraping/datasets/ -P
+          rclone copy "vfx:/Instagram_Data/Batch_2026-04-05T23-23-17/Master_Dataset_2026-04-05T23-23-17.json" "/data/IG_Scraping/datasets/" -P
 
       - name: Run Extraction Script
         run: |
@@ -44,7 +43,6 @@ jobs:
           python uni.py
 
       - name: Upload Extracted Data to MEGA
-        # Script chalne ke baad jo naya "Batch" folder banega, usko hum "Instagram_Extracted_Data" naam ke naye folder mein bhej rahe hain taake purana data mix na ho
         run: |
           echo "Uploading results back to MEGA..."
-          rclone copy /data/IG_Scraping vfx:/Instagram_Extracted_Data -P --transfers 32 --checkers 64
+          rclone copy "/data/IG_Scraping" "vfx:/Instagram_Extracted_Data" -P --transfers 32 --checkers 64
