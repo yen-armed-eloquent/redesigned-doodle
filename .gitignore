@@ -1,0 +1,20 @@
+# Data folders
+/data/
+/datasets/
+/IG_Scraping/
+Batch--*
+EXTRACTED_*
+
+# Python temporary files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# State and logs
+resume_state.json
+*.log
+report_*.txt
+
+# OS files
+.DS_Store
+Thumbs.db
