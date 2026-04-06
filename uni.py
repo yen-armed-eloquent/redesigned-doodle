@@ -1,7 +1,7 @@
 # ╔══════════════════════════════════════════════════════════════════════════╗
 # ║     UNIVERSAL INSTAGRAM EXTRACTOR - PRO AUTO-BATCH & ORGANIZER           ║
 # ║  Modules: RawData | CleanData | Following | Suggested | Tagged Posts     ║
-# ║  Features: Auto-Move JSONs | Dynamic Batch Folder | 12-Threads Parallel  ║
+# ║  Features: Auto-Move JSONs | Enterprise Caption TXT | 12-Threads         ║
 # ╚══════════════════════════════════════════════════════════════════════════╝
 
 import os, json, re, glob, requests, csv, sys, signal, threading, shutil
@@ -14,10 +14,10 @@ from datetime import datetime
 BASE_DIR   = '/data/IG_Scraping'
 INPUT_FOLDER = os.path.join(BASE_DIR, 'datasets')
 
-# Script ki apni location (loose JSON files dhoondne ke liye)
+# Script ki apni location
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# Real-time Batch Folder — har run par naya folder banega
+# Real-time Batch Folder 
 now = datetime.now()
 folder_timestamp  = now.strftime("%Y-%m-%d-%A_%I-%M-%S-%p")
 BATCH_FOLDER_NAME = f"Batch--{folder_timestamp}"
@@ -32,16 +32,10 @@ FOLLOWING_MODE  = 'straight'
 STATE_FILE      = os.path.join(OUTPUT_FOLDER, "resume_state.json")
 
 # ════════════════════════════════════════════════════════════════════
-#  SECTION 2 ── AUTO-ORGANIZER  (Loose JSON → datasets folder)
+#  SECTION 2 ── AUTO-ORGANIZER
 # ════════════════════════════════════════════════════════════════════
 def organize_input_files():
-    """
-    Script ke sath (SCRIPT_DIR) ya /data mein pari hui loose JSON files
-    ko utha kar INPUT_FOLDER (datasets) mein move karta hai.
-    """
     os.makedirs(INPUT_FOLDER, exist_ok=True)
-
-    # Dono jagah dhoondein: script ki directory + /data root
     search_dirs = set([SCRIPT_DIR, '/data'])
     loose_jsons = []
     for d in search_dirs:
@@ -52,11 +46,8 @@ def organize_input_files():
 
     for file_path in loose_jsons:
         file_name = os.path.basename(file_path)
-        if file_name in SKIP_NAMES:
-            continue
-        # Agar file already INPUT_FOLDER ke andar hai to skip
-        if os.path.abspath(file_path) == os.path.abspath(os.path.join(INPUT_FOLDER, file_name)):
-            continue
+        if file_name in SKIP_NAMES: continue
+        if os.path.abspath(file_path) == os.path.abspath(os.path.join(INPUT_FOLDER, file_name)): continue
         dest_path = os.path.join(INPUT_FOLDER, file_name)
         try:
             shutil.move(file_path, dest_path)
@@ -158,16 +149,14 @@ def load_state():
         try:
             with open(STATE_FILE, 'r', encoding='utf-8') as f:
                 return json.load(f)
-        except Exception:
-            return {}
+        except Exception: return {}
     return {}
 
 def save_state(state):
     try:
         with open(STATE_FILE, 'w', encoding='utf-8') as f:
             json.dump(state, f, indent=4)
-    except Exception:
-        pass
+    except Exception: pass
 
 def _write_txt_report(txt_path, source_file, out_dir, s, total):
     try:
@@ -184,11 +173,10 @@ def _write_txt_report(txt_path, source_file, out_dir, s, total):
             f.write(f"PFPs Skipped  : {s.get('pfps_skipped_exists')}\n")
             f.write(f"PFPs Failed   : {s.get('pfps_failed')}\n")
             f.write("-------------------------\n")
-    except Exception:
-        pass
+    except Exception: pass
 
 # ════════════════════════════════════════════════════════════════════
-#  SECTION 6 ── GLOBAL AVATAR CACHE (Thread Safe)
+#  SECTION 6 ── GLOBAL AVATAR CACHE
 # ════════════════════════════════════════════════════════════════════
 _avatar_cache = {}
 
@@ -199,27 +187,23 @@ def update_avatar_cache(user_dict):
 
     with cache_lock:
         best = _avatar_cache.get(uname, {'url': None, 'width': 0})
-
         hd_info = user_dict.get('hd_profile_pic_url_info')
         if isinstance(hd_info, dict) and hd_info.get('url'):
             w = hd_info.get('width', 1080)
-            if w > best['width']:
-                _avatar_cache[uname] = {'url': hd_info['url'], 'width': w}
+            if w > best['width']: _avatar_cache[uname] = {'url': hd_info['url'], 'width': w}
 
         hd_vers = user_dict.get('hd_profile_pic_versions')
         if isinstance(hd_vers, list) and hd_vers:
             pic = sorted(hd_vers, key=lambda x: x.get('width', 0), reverse=True)[0]
             w   = pic.get('width', 0)
-            if pic.get('url') and w > best['width']:
-                _avatar_cache[uname] = {'url': pic['url'], 'width': w}
+            if pic.get('url') and w > best['width']: _avatar_cache[uname] = {'url': pic['url'], 'width': w}
 
         normal = user_dict.get('profile_pic_url') or user_dict.get('profilePicUrl')
         if normal and _avatar_cache.get(uname, {'width': 0})['width'] == 0:
             _avatar_cache[uname] = {'url': normal, 'width': 150}
 
 def get_best_avatar(username):
-    with cache_lock:
-        return _avatar_cache.get(username, {}).get('url')
+    with cache_lock: return _avatar_cache.get(username, {}).get('url')
 
 # ════════════════════════════════════════════════════════════════════
 #  SECTION 7 ── SMART MEDIA EXTRACTORS
@@ -228,8 +212,7 @@ def _extract_video(node):
     for key in ('videoUrl', 'video_url'):
         if node.get(key): return node[key]
     vers = node.get('video_versions')
-    if isinstance(vers, list) and vers:
-        return vers[0].get('url')
+    if isinstance(vers, list) and vers: return vers[0].get('url')
     return None
 
 def _extract_image(node):
@@ -247,56 +230,42 @@ def _extract_image(node):
 def get_media_list_raw(item):
     out, seen = [], set()
     def _add(url, mtype, role):
-        if url and url not in seen:
-            seen.add(url); out.append({'url': url, 'type': mtype, 'role': role})
+        if url and url not in seen: seen.add(url); out.append({'url': url, 'type': mtype, 'role': role})
 
     if 'edge_sidecar_to_children' in item:
         for edge in item['edge_sidecar_to_children'].get('edges', []):
             n    = edge.get('node', {})
             is_v = n.get('is_video') or n.get('video_versions') or n.get('media_type') == 2
-            if is_v:
-                _add(_extract_video(n), 'mp4', 'item')
-                _add(_extract_image(n), 'jpg', 'item')
-            else:
-                _add(_extract_image(n), 'jpg', 'item')
+            if is_v: _add(_extract_video(n), 'mp4', 'item'); _add(_extract_image(n), 'jpg', 'item')
+            else: _add(_extract_image(n), 'jpg', 'item')
     elif 'carousel_media' in item:
         for child in item['carousel_media']:
             is_v = child.get('is_video') or child.get('video_versions') or child.get('media_type') == 2
-            if is_v:
-                _add(_extract_video(child), 'mp4', 'item')
-                _add(_extract_image(child), 'jpg', 'item')
-            else:
-                _add(_extract_image(child), 'jpg', 'item')
+            if is_v: _add(_extract_video(child), 'mp4', 'item'); _add(_extract_image(child), 'jpg', 'item')
+            else: _add(_extract_image(child), 'jpg', 'item')
     else:
-        is_v = (item.get('is_video') or item.get('product_type') == 'clips'
-                or item.get('video_versions') or item.get('media_type') == 2)
-        if is_v:
-            _add(_extract_video(item), 'mp4', 'reels')
-            _add(_extract_image(item), 'jpg', 'thumbs')
-        else:
-            _add(_extract_image(item), 'jpg', 'item')
+        is_v = (item.get('is_video') or item.get('product_type') == 'clips' or item.get('video_versions') or item.get('media_type') == 2)
+        if is_v: _add(_extract_video(item), 'mp4', 'reels'); _add(_extract_image(item), 'jpg', 'thumbs')
+        else: _add(_extract_image(item), 'jpg', 'item')
     return out
 
 def get_media_list_clean(item):
     out, seen = [], set()
     itype = item.get('type', '')
     def _add(url, mtype, label):
-        if url and url not in seen:
-            seen.add(url); out.append({'url': url, 'type': mtype, 'label': label})
+        if url and url not in seen: seen.add(url); out.append({'url': url, 'type': mtype, 'label': label})
 
     if itype == 'Sidecar' or item.get('carouselSlides'):
         slides = item.get('carouselSlides') or []
         if not slides:
-            for i, img in enumerate(item.get('images', [])):
-                _add(img, 'jpg', f'slide{i+1}')
+            for i, img in enumerate(item.get('images', [])): _add(img, 'jpg', f'slide{i+1}')
         else:
             for i, sl in enumerate(slides):
                 n = i + 1
                 if sl.get('type') == 'Video' or sl.get('videoUrl'):
                     _add(sl.get('videoUrl'), 'mp4', f'slide{n}')
                     _add(sl.get('displayUrl') or sl.get('thumbnailUrl'), 'jpg', f'slide{n}_thumb')
-                else:
-                    _add(sl.get('displayUrl') or sl.get('url'), 'jpg', f'slide{n}')
+                else: _add(sl.get('displayUrl') or sl.get('url'), 'jpg', f'slide{n}')
     elif itype == 'Video' or item.get('videoUrl') or item.get('is_video'):
         _add(item.get('videoUrl') or item.get('video_url'), 'mp4', 'reels')
         _add(item.get('displayUrl') or item.get('display_url') or item.get('thumbnailUrl'), 'jpg', 'thumbs')
@@ -312,8 +281,7 @@ def get_caption(item):
     try:
         edges = item.get('edge_media_to_caption', {}).get('edges', [])
         if edges: return edges[0].get('node', {}).get('text', '')
-    except Exception:
-        pass
+    except Exception: pass
     cap = item.get('caption')
     if isinstance(cap, dict): return cap.get('text', '')
     if isinstance(cap, str) and cap: return cap
@@ -326,7 +294,6 @@ def get_caption(item):
 # ════════════════════════════════════════════════════════════════════
 def tag_active_stories_and_highlights(data):
     if not isinstance(data, dict): return
-
     active_stories = data.get('activeStories')
     if active_stories:
         if isinstance(active_stories, dict):
@@ -348,8 +315,7 @@ def tag_active_stories_and_highlights(data):
                     if "items" in item:
                         for st in item.get("items", []):
                             if isinstance(st, dict): st['_is_active_story'] = True
-                    else:
-                        item['_is_active_story'] = True
+                    else: item['_is_active_story'] = True
 
     highlights = data.get('highlights', [])
     if isinstance(highlights, list):
@@ -375,22 +341,18 @@ def extract_comments_globally(data):
     def _add(pid, c):
         if not pid or not isinstance(c, dict): return
         key = str(c.get('id') or c.get('pk') or c.get('text', ''))
-        if key and key not in seen:
-            seen.add(key)
-            cmap.setdefault(pid, []).append(c)
+        if key and key not in seen: seen.add(key); cmap.setdefault(pid, []).append(c)
 
     def _walk(obj, cur_pid=None):
         if isinstance(obj, dict):
-            if 'username' in obj and ('profile_pic_url' in obj or 'hd_profile_pic_url_info' in obj):
-                update_avatar_cache(obj)
+            if 'username' in obj and ('profile_pic_url' in obj or 'hd_profile_pic_url_info' in obj): update_avatar_cache(obj)
             if 'owner' in obj: update_avatar_cache(obj['owner'])
             if 'user'  in obj: update_avatar_cache(obj['user'])
 
             pid = str(obj.get('id') or obj.get('pk') or '')
             if '_' in pid and not pid.startswith('item_'): pid = pid.split('_')[0]
 
-            is_post = (any(k in obj for k in ('display_url','video_url','image_versions2'))
-                       and not ('text' in obj and 'created_at' in obj))
+            is_post = (any(k in obj for k in ('display_url','video_url','image_versions2')) and not ('text' in obj and 'created_at' in obj))
             if pid and is_post: cur_pid = pid
 
             if 'text' in obj and 'created_at' in obj and ('owner' in obj or 'user' in obj):
@@ -414,9 +376,7 @@ def find_raw_posts(data, require_owner=False):
 
             pid = str(obj.get('id') or obj.get('pk') or obj.get('shortcode') or '')
             is_comment = 'text' in obj and 'created_at' in obj
-            has_media   = any(k in obj for k in (
-                'display_url','video_url','image_versions2',
-                'carousel_media','edge_sidecar_to_children','taken_at_timestamp'))
+            has_media   = any(k in obj for k in ('display_url','video_url','image_versions2','carousel_media','edge_sidecar_to_children','taken_at_timestamp'))
 
             owner     = obj.get('owner') or obj.get('user') or {}
             has_owner = isinstance(owner, dict) and ('username' in owner or 'id' in owner)
@@ -428,12 +388,10 @@ def find_raw_posts(data, require_owner=False):
                 found.append(obj)
                 has_car = 'edge_sidecar_to_children' in obj or 'carousel_media' in obj
                 for k, v in obj.items():
-                    if k not in ('edge_media_to_comment', 'edge_media_preview_comment'):
-                        _walk(v, in_carousel=has_car)
+                    if k not in ('edge_media_to_comment', 'edge_media_preview_comment'): _walk(v, in_carousel=has_car)
             else:
                 for k, v in obj.items():
-                    if k not in ('edge_media_to_comment', 'edge_media_preview_comment'):
-                        _walk(v, False)
+                    if k not in ('edge_media_to_comment', 'edge_media_preview_comment'): _walk(v, False)
         elif isinstance(obj, list):
             for v in obj: _walk(v, in_carousel)
     _walk(data, False)
@@ -441,9 +399,7 @@ def find_raw_posts(data, require_owner=False):
 
 def extract_active_stories_advanced(data):
     story_items  = []
-    # --- YAHAN FIX KIYA HAI ---
-    if not isinstance(data, dict):
-        return story_items
+    if not isinstance(data, dict): return story_items
         
     active_stories = data.get('activeStories')
     if not active_stories: return story_items
@@ -510,14 +466,15 @@ def _build_filenames(post_node, global_username, media_source='raw'):
         hl_title_raw = post_node.get('_highlight_title', '')
         if not hl_title_raw:
             added_to = post_node.get('highlights_info', {}).get('added_to', [])
-            if added_to and isinstance(added_to, list):
-                hl_title_raw = added_to[0].get('title', '')
+            if added_to and isinstance(added_to, list): hl_title_raw = added_to[0].get('title', '')
         hl_title  = sanitize_or(hl_title_raw, 'Unknown', 40)
         base_name = f"@{user}_Highlight_{hl_title}".strip('_')
         cmts_name = None
+        caption_name = f"{base_name}_caption.txt"
     elif is_active_story:
         base_name = f"@{user}_ActiveStory".strip('_')
         cmts_name = None
+        caption_name = f"{base_name}_caption.txt"
     else:
         cap_raw = get_caption(post_node)
         if not cap_raw:
@@ -526,14 +483,15 @@ def _build_filenames(post_node, global_username, media_source='raw'):
         cap       = sanitize_or(cap_raw, 'NoCaption', 40)
         base_name = f"@{user}_{cap}"
         cmts_name = f"{base_name}_comments_{suffix}.json"
+        caption_name = f"{base_name}_caption_{suffix}.txt"
 
     meta_name = f"{base_name}_meta_{suffix}.json"
 
     return {
         'numeric_id': nid, 'base_name': base_name, 'suffix': suffix,
-        'meta_name': meta_name, 'cmts_name': cmts_name,
+        'meta_name': meta_name, 'cmts_name': cmts_name, 'caption_name': caption_name,
         'is_highlight': is_hl, 'is_active_story': is_active_story,
-        'user': user, 'user_val': uval,
+        'user': user, 'user_val': uval, 'code': code
     }
 
 def _save_media(post_node, base_name, suffix, out_dir, is_highlight, is_active_story, media_source='raw'):
@@ -561,31 +519,21 @@ def _save_media(post_node, base_name, suffix, out_dir, is_highlight, is_active_s
         role = m.get('role') or m.get('label', 'item')
 
         if is_highlight:
-            if ext == 'mp4' or role in ('reels', 'mp4'):
-                fname = f"{base_name}_reel_{suffix}.{ext}"
-            elif 'thumb' in role:
-                fname = f"{base_name}_reel_thumb_{suffix}.{ext}"
-            else:
-                fname = f"{base_name}_img_{suffix}.{ext}"
+            if ext == 'mp4' or role in ('reels', 'mp4'): fname = f"{base_name}_reel_{suffix}.{ext}"
+            elif 'thumb' in role: fname = f"{base_name}_reel_thumb_{suffix}.{ext}"
+            else: fname = f"{base_name}_img_{suffix}.{ext}"
         elif is_active_story:
-            if ext == 'mp4' or role in ('reels', 'mp4'):
-                fname = f"{base_name}_vid_{suffix}.{ext}"
-            elif 'thumb' in role:
-                fname = f"{base_name}_vid_thumb_{suffix}.{ext}"
-            else:
-                fname = f"{base_name}_img_{suffix}.{ext}"
+            if ext == 'mp4' or role in ('reels', 'mp4'): fname = f"{base_name}_vid_{suffix}.{ext}"
+            elif 'thumb' in role: fname = f"{base_name}_vid_thumb_{suffix}.{ext}"
+            else: fname = f"{base_name}_img_{suffix}.{ext}"
         else:
             if   role == 'reels':  lbl = 'reels'
             elif role == 'thumbs': lbl = 'thumbs'
             elif 'thumb' in role:  lbl = role
-            else:
-                lbl       = f"item{item_ctr}"
-                item_ctr += 1
+            else: lbl = f"item{item_ctr}"; item_ctr += 1
             fname = f"{base_name}_{lbl}_{suffix}.{ext}"
 
-        if download(m['url'], os.path.join(out_dir, fname)):
-            done = True
-
+        if download(m['url'], os.path.join(out_dir, fname)): done = True
     return done
 
 def _process_single_post(node, idx, out_dir, global_username, comments_map, media_source):
@@ -594,9 +542,9 @@ def _process_single_post(node, idx, out_dir, global_username, comments_map, medi
 
     info = _build_filenames(node, global_username, media_source)
     nid, base, suffix = info['numeric_id'], info['base_name'], info['suffix']
-    meta_name, cmts_name = info['meta_name'], info['cmts_name']
+    meta_name, cmts_name, caption_name = info['meta_name'], info['cmts_name'], info['caption_name']
     is_hl, is_active_story = info['is_highlight'], info['is_active_story']
-    user, uval = info['user'], info['user_val']
+    user, uval, code = info['user'], info['user_val'], info['code']
 
     av_url  = get_best_avatar(uval)
     av_path = os.path.join(out_dir, f"@{user}_avatar.jpg")
@@ -604,16 +552,19 @@ def _process_single_post(node, idx, out_dir, global_username, comments_map, medi
 
     meta_path = os.path.join(out_dir, meta_name)
     cmts_path = os.path.join(out_dir, cmts_name) if cmts_name else None
-    already   = os.path.exists(meta_path) and (not cmts_path or os.path.exists(cmts_path))
+    caption_path = os.path.join(out_dir, caption_name)
 
+    already = os.path.exists(meta_path) and (not cmts_path or os.path.exists(cmts_path)) and os.path.exists(caption_path)
     if already:
         safe_print(f"      [{idx+1}] ⏭️  SKIPPED (exists): {meta_name}")
         return
 
+    # 1. Save Meta JSON
     save_node = {k: v for k, v in node.items() if k not in ('_is_highlight', '_highlight_title', '_is_active_story')}
     with open(meta_path, 'w', encoding='utf-8') as f:
         json.dump(save_node, f, indent=4, ensure_ascii=False)
 
+    # 2. Save Comments JSON
     post_cmts = comments_map.get(nid, [])
     if media_source == 'clean':
         for ckey in ('comments', 'latestComments', 'extractedComments'):
@@ -621,22 +572,61 @@ def _process_single_post(node, idx, out_dir, global_username, comments_map, medi
                 seen_ids = set()
                 for c in node[ckey]:
                     cid = str(c.get('id') or c.get('pk') or c.get('text', ''))
-                    if cid not in seen_ids:
-                        seen_ids.add(cid); post_cmts.append(c)
+                    if cid not in seen_ids: seen_ids.add(cid); post_cmts.append(c)
 
     if cmts_path:
         with open(cmts_path, 'w', encoding='utf-8') as f:
             json.dump(post_cmts, f, indent=4, ensure_ascii=False)
 
+    # 3. GENERATE ENTERPRISE CAPTION FILE
+    pk_id = ""
+    owner = node.get('owner') or node.get('user') or {}
+    if isinstance(owner, dict):
+        pk_id = str(owner.get('id') or owner.get('pk') or '')
+
+    likes = str(node.get('like_count') or node.get('edge_media_preview_like', {}).get('count') or 'N/A')
+    cmts_count = str(node.get('comment_count') or node.get('edge_media_to_comment', {}).get('count') or 'N/A')
+    views = str(node.get('play_count') or node.get('view_count') or node.get('video_view_count') or 'N/A')
+    cap_text = get_caption(node) or "No Caption Available"
+
+    post_url = f"https://www.instagram.com/p/{code}/" if code and code != nid else ("Story/Highlight" if is_hl or is_active_story else "N/A")
+    prof_url = f"https://www.instagram.com/{uval}/" if uval else "N/A"
+
+    caption_content = f"""======================================================================
+                     ENTERPRISE CAPTION & METRICS REPORT
+======================================================================
+[POST IDENTIFICATION]
+Post URL         : {post_url}
+Post Shortcode   : {code}
+Numeric ID       : {nid}
+
+[AUTHOR DETAILS]
+Instagram URL    : {prof_url}
+Username         : @{uval}
+Primary ID (PK)  : {pk_id}
+
+[POST METRICS]
+Likes            : {likes}
+Comments Count   : {cmts_count}
+Views/Plays      : {views}
+
+======================================================================
+[CAPTION / TEXT CONTENT]
+----------------------------------------------------------------------
+{cap_text}
+======================================================================
+"""
+    with open(caption_path, 'w', encoding='utf-8') as f:
+        f.write(caption_content)
+
+    # 4. Save Media
     done = _save_media(node, base, suffix, out_dir, is_hl, is_active_story, media_source)
 
-    if is_hl:
-        status = "✅ (Highlight)" if done else "Meta Only (Highlight)"
-    elif is_active_story:
-        status = "✅ (Active Story)" if done else "Meta Only (Active Story)"
+    if is_hl: status = "✅ (Highlight)" if done else "Meta/Caption Only (Highlight)"
+    elif is_active_story: status = "✅ (Active Story)" if done else "Meta/Caption Only (Active Story)"
     else:
         cs = f"(+{len(post_cmts)} Comments)" if post_cmts else "(0 Comments)"
-        status = f"✅ {cs}" if done else f"Meta Only {cs}"
+        status = f"✅ {cs}" if done else f"Meta/Caption Only {cs}"
 
     safe_print(f"      [{idx+1}] → {meta_name} ... {status}")
 
@@ -651,8 +641,7 @@ def _download_posts_batch(posts_list, out_dir, global_username, comments_map=Non
         futures = []
         for idx, node in enumerate(posts_to_process):
             if isinstance(node, dict):
-                futures.append(executor.submit(
-                    _process_single_post, node, idx, out_dir, global_username, comments_map, media_source))
+                futures.append(executor.submit(_process_single_post, node, idx, out_dir, global_username, comments_map, media_source))
 
         while futures:
             if shutdown_flag: break
@@ -670,14 +659,11 @@ def _download_posts_batch(posts_list, out_dir, global_username, comments_map=Non
 # ════════════════════════════════════════════════════════════════════
 def module_rawdata(data, out_dir, username):
     safe_print("   📋 [RAW] Extracting posts, highlights, stories...")
-
     tag_active_stories_and_highlights(data)
     comments_map = extract_comments_globally(data)
 
     acc = None
-    if isinstance(data, dict):
-        acc = data.get('accountInfo') or data.get('user')
-
+    if isinstance(data, dict): acc = data.get('accountInfo') or data.get('user')
     if isinstance(acc, dict) and ('username' in acc or 'Username' in acc):
         uname_from_acc = acc.get('username') or acc.get('Username') or username
         with open(os.path.join(out_dir, "PROFILE_INFO.json"), 'w', encoding='utf-8') as f:
@@ -688,34 +674,27 @@ def module_rawdata(data, out_dir, username):
 
     raw_posts   = find_raw_posts(data, require_owner=False)
     raw_stories = extract_active_stories_advanced(data)
-    if raw_stories:
-        raw_posts.extend(raw_stories)
+    if raw_stories: raw_posts.extend(raw_stories)
 
     unique_posts = {}
     for post_node in raw_posts:
         numeric_id = str(post_node.get('id') or post_node.get('pk') or "")
-        if '_' in numeric_id and not numeric_id.startswith('item_'):
-            numeric_id = numeric_id.split('_')[0]
-        if not numeric_id:
-            numeric_id = str(post_node.get('shortcode') or post_node.get('code') or "")
+        if '_' in numeric_id and not numeric_id.startswith('item_'): numeric_id = numeric_id.split('_')[0]
+        if not numeric_id: numeric_id = str(post_node.get('shortcode') or post_node.get('code') or "")
         if not numeric_id: continue
 
         cap_new   = get_caption(post_node)
         score_new = len(json.dumps(post_node)) + (50000 if cap_new else 0)
 
-        if numeric_id not in unique_posts:
-            unique_posts[numeric_id] = post_node
+        if numeric_id not in unique_posts: unique_posts[numeric_id] = post_node
         else:
             existing_node = unique_posts[numeric_id]
             cap_old   = get_caption(existing_node)
             score_old = len(json.dumps(existing_node)) + (50000 if cap_old else 0)
-            if score_new > score_old:
-                unique_posts[numeric_id] = post_node
+            if score_new > score_old: unique_posts[numeric_id] = post_node
 
     posts_to_process = list(unique_posts.values())
-
-    if not posts_to_process:
-        safe_print("   ⚠️ No posts found in this file.")
+    if not posts_to_process: safe_print("   ⚠️ No posts found in this file.")
     else:
         safe_print(f"   📦 Found {len(posts_to_process)} UNIQUE items (Processing max {ITEM_LIMIT} on {MAX_WORKERS} threads)")
         safe_print("   💡 HOTKEYS: [F] Skip file")
@@ -736,17 +715,14 @@ def module_rawdata(data, out_dir, username):
 # ════════════════════════════════════════════════════════════════════
 def module_cleandata(data, out_dir, username):
     safe_print("   📋 [CLEAN] Extracting posts, highlights, active stories...")
-
     tag_active_stories_and_highlights(data)
     all_items = []
 
-    # --- YAHAN FIX KIYA HAI ---
     if isinstance(data, dict):
         for src_key in ('feedPosts', 'posts', 'scrapedPosts'):
             for p in data.get(src_key, []):
                 p['source_type'] = 'Post'
                 all_items.append(p)
-
         for hl in data.get('highlights', []):
             if 'items' in hl:
                 title = sanitize_or(hl.get('title', ''), 'Highlight', 25)
@@ -766,8 +742,7 @@ def module_cleandata(data, out_dir, username):
                 all_items.append(p)
 
     clean_stories = extract_active_stories_advanced(data)
-    if clean_stories:
-        all_items.extend(clean_stories)
+    if clean_stories: all_items.extend(clean_stories)
 
     if isinstance(data, dict):
         acc = data.get('accountInfo') or data.get('user')
@@ -786,7 +761,7 @@ def module_cleandata(data, out_dir, username):
     _download_posts_batch(all_items, out_dir, username, comments_map={}, media_source='clean')
 
 # ════════════════════════════════════════════════════════════════════
-#  MODULE C ── FOLLOWING LIST PROCESSOR (Multi-Threaded)
+#  MODULE C ── FOLLOWING LIST PROCESSOR
 # ════════════════════════════════════════════════════════════════════
 def _process_single_following_user(user, i, start_idx, recheck, csv_writer, csv_f, json_dir, pfps_dir, state, file_key):
     global shutdown_flag, skip_file_flag
@@ -798,7 +773,6 @@ def _process_single_following_user(user, i, start_idx, recheck, csv_writer, csv_
     pk_id   = str(user.get('pk_id') or user.get('pk') or user.get('id', ''))
 
     if not uname or not pk_id: return
-
     insta_url = f"https://www.instagram.com/{uname}/"
     hd_info   = user.get('hd_profile_pic_url_info', {})
     pfp_url   = (hd_info.get('url') if isinstance(hd_info, dict) else None) or user.get('profile_pic_url', '')
@@ -813,11 +787,9 @@ def _process_single_following_user(user, i, start_idx, recheck, csv_writer, csv_
     jpath = os.path.join(json_dir, f"@{uname}_{pk_id}.json")
     if not os.path.exists(jpath):
         try:
-            with open(jpath, 'w', encoding='utf-8') as jf:
-                json.dump(user, jf, indent=4)
+            with open(jpath, 'w', encoding='utf-8') as jf: json.dump(user, jf, indent=4)
             with state_lock: state[file_key]['json_saved'] += 1
-        except Exception:
-            pass
+        except Exception: pass
 
     with state_lock: download_av = state[file_key].get('download_avatars', True)
 
@@ -836,15 +808,12 @@ def _process_single_following_user(user, i, start_idx, recheck, csv_writer, csv_
 
     with state_lock:
         if not recheck:
-            if i + 1 > state[file_key]['processed_count']:
-                state[file_key]['processed_count'] = i + 1
+            if i + 1 > state[file_key]['processed_count']: state[file_key]['processed_count'] = i + 1
 
 def module_following(data, out_dir, username, file_key):
     global skip_file_flag
     skip_file_flag = False
-
     safe_print(f"   📋 [FOLLOWING] Processing following list...")
-    # --- YAHAN FIX KIYA HAI ---
     if not isinstance(data, dict):
         safe_print("   [!] File list format mein hai, 'followingList' dictionary expected thi. Skipping.")
         return
@@ -855,8 +824,7 @@ def module_following(data, out_dir, username, file_key):
         return
 
     all_users = []
-    for chunk in chunks:
-        all_users.extend(chunk.get('users', []))
+    for chunk in chunks: all_users.extend(chunk.get('users', []))
 
     total = len(all_users)
     safe_print(f"   [*] Total accounts: {total}")
@@ -897,17 +865,13 @@ def module_following(data, out_dir, username, file_key):
 
     with open(csv_path, mode=csv_mode, newline='', encoding='utf-8') as csv_f:
         writer = csv.writer(csv_f)
-        if csv_mode == 'w':
-            writer.writerow(['Instagram URL','PK ID','Username','Full Name','Avatar Link','Bio','External URL'])
+        if csv_mode == 'w': writer.writerow(['Instagram URL','PK ID','Username','Full Name','Avatar Link','Bio','External URL'])
 
         users_to_process = all_users[:process_limit]
-
         with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
             futures = []
             for i, user in enumerate(users_to_process):
-                futures.append(executor.submit(
-                    _process_single_following_user,
-                    user, i, start_idx, recheck, writer, csv_f, json_dir, pfps_dir, state, file_key))
+                futures.append(executor.submit(_process_single_following_user, user, i, start_idx, recheck, writer, csv_f, json_dir, pfps_dir, state, file_key))
 
             while futures:
                 if shutdown_flag: break
@@ -973,15 +937,11 @@ def module_suggested(data, out_dir, source_filename):
 # ════════════════════════════════════════════════════════════════════
 def module_tagged(data, out_dir, username):
     safe_print("   📋 [TAGGED] Extracting tagged posts...")
-    # --- YAHAN FIX KIYA HAI ---
     if not isinstance(data, dict):
         safe_print("   ⚠️ Data list format mein hai, tagged edges expected nahi. Skipping.")
         return
 
-    edges = (data.get('data', {})
-                 .get('xdt_api__v1__usertags__user_id__feed_connection', {})
-                 .get('edges', []))
-
+    edges = (data.get('data', {}).get('xdt_api__v1__usertags__user_id__feed_connection', {}).get('edges', []))
     if not edges:
         safe_print("   ⚠️ No tagged post edges found.")
         return
@@ -1051,14 +1011,10 @@ def _detect_mode(filepath, data):
         has_fl      = bool(data.get('followingList'))
         has_tags    = 'xdt_api__v1__usertags__user_id__feed_connection' in str(data)[:300]
 
-        if has_feed or has_stories:
-            if 'cleandata' in fname or 'clean' in fname: return 'cleandata'
-            return 'rawdata'
-
+        if has_feed or has_stories: return 'cleandata' if ('cleandata' in fname or 'clean' in fname) else 'rawdata'
         if has_fl:
             for chunk in data['followingList']:
                 if isinstance(chunk, dict) and chunk.get('users'): return 'following'
-
         if has_tags: return 'tagged'
 
     if 'tagged'    in fname or '_all_tagged' in fname: return 'tagged'
@@ -1068,10 +1024,8 @@ def _detect_mode(filepath, data):
 
     if isinstance(data, list):
         try:
-            if isinstance(data[0], dict) and 'edge_chaining' in str(data[0].get('data', {})):
-                return 'suggested'
-        except Exception:
-            pass
+            if isinstance(data[0], dict) and 'edge_chaining' in str(data[0].get('data', {})): return 'suggested'
+        except Exception: pass
 
     return 'rawdata'
 
@@ -1084,9 +1038,7 @@ def _get_username(filepath, data):
 
     parts = os.path.basename(filepath).replace('.json', '').split('_')
     for p in parts:
-        if p and not p.isdigit() and len(p) > 2 and p.lower() not in (
-            'ig','rawdata','cleandata','fast','full','following',
-            'highlights','stories','posts','tagged','suggested'):
+        if p and not p.isdigit() and len(p) > 2 and p.lower() not in ('ig','rawdata','cleandata','fast','full','following','highlights','stories','posts','tagged','suggested'):
             return p
     return 'unknown_user'
 
@@ -1099,8 +1051,7 @@ def process_file(json_path):
     safe_print(f"  ✨ FILE: {os.path.basename(json_path)}")
     safe_print(f"{'═'*65}")
     try:
-        with open(json_path, 'r', encoding='utf-8') as f:
-            data = json.load(f)
+        with open(json_path, 'r', encoding='utf-8') as f: data = json.load(f)
     except json.JSONDecodeError:
         safe_print(f"  ❌ Invalid JSON — skipping: {os.path.basename(json_path)}")
         return
@@ -1123,8 +1074,7 @@ def process_file(json_path):
     elif mode == 'cleandata': module_cleandata(data, out_dir, username)
     else:                     module_rawdata(data, out_dir, username)
 
-    if not shutdown_flag:
-        safe_print(f"\n  ✅ Done: {os.path.basename(json_path)}")
+    if not shutdown_flag: safe_print(f"\n  ✅ Done: {os.path.basename(json_path)}")
 
 # ════════════════════════════════════════════════════════════════════
 #  SECTION 11 ── ENTRY POINT
@@ -1135,17 +1085,12 @@ if __name__ == '__main__':
     safe_print("║   Modules: RawData | CleanData | Following | Suggested | Tag ║")
     safe_print("╚══════════════════════════════════════════════════════════════╝\n")
 
-    # STEP 1: Loose JSON files ko datasets folder mein move karo
     organize_input_files()
-
-    # STEP 2: datasets folder se saari JSON files uthao
     all_files = sorted(glob.glob(os.path.join(INPUT_FOLDER, '**', '*.json'), recursive=True))
     all_files = [f for f in all_files if 'resume_state' not in f and 'EXTRACTED_' not in f]
 
     if not all_files:
         safe_print(f"  ❌ Koi JSON file nahi mili in: {INPUT_FOLDER}")
-        safe_print(f"     JSON files yahan rakhein: {INPUT_FOLDER}")
-        safe_print(f"     Ya uni.py ke sath wali directory mein: {SCRIPT_DIR}")
         sys.exit(0)
 
     safe_print(f"  📁 Input Folder  : {INPUT_FOLDER}")
@@ -1155,17 +1100,14 @@ if __name__ == '__main__':
     safe_print(f"  🔢 Threads       : {MAX_WORKERS}")
     safe_print(f"  ⌨️  HOTKEYS (Win) : [F] Skip File\n")
     safe_print(f"  🗂️  Found {len(all_files)} JSON file(s):\n")
-    for f in all_files:
-        safe_print(f"      • {os.path.basename(f)}")
+    for f in all_files: safe_print(f"      • {os.path.basename(f)}")
     safe_print()
 
-    # STEP 3: Processing
     for f in all_files:
         if shutdown_flag: break
         process_file(f)
 
-    if shutdown_flag:
-        safe_print("\n🛑 Script stopped manually. Aapka sab data mehfooz hai.")
+    if shutdown_flag: safe_print("\n🛑 Script stopped manually. Aapka sab data mehfooz hai.")
     else:
         safe_print(f"\n🏁 ALL FILES PROCESSED!")
         safe_print(f"📂 Data yahan save hua: {OUTPUT_FOLDER}")
